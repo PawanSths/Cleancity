@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CleanCity
 
-## Getting Started
+CleanCity is a production-minded civic issue reporting app built with Next.js 15, TypeScript, Tailwind CSS, shadcn-style UI components, Supabase, OpenStreetMap/Leaflet, OpenAI Vision, and Vercel.
 
-First, run the development server:
+## Architecture
+
+- `src/app` contains App Router pages, route handlers, auth callback, and protected admin UI.
+- `src/lib/actions.ts` contains server actions for complaint creation, upvotes, assignment, and status updates.
+- `src/lib/supabase` contains browser, server, and middleware Supabase clients.
+- `src/app/api/analyze/route.ts` validates uploads, rate-limits requests, and calls OpenAI Vision.
+- `supabase/schema.sql` contains PostgreSQL tables, indexes, triggers, RLS policies, Storage bucket policy, and Realtime publication.
+- `supabase/seed.sql` contains starter anonymous complaint data.
+- `docs/architecture.md` describes folder structure, auth flow, and data flow.
+
+## Environment Variables
+
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+OPENAI_API_KEY=sk-your-openai-key
+OPENAI_VISION_MODEL=gpt-4o-mini
+```
+
+## Step-by-Step Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` and add your Supabase and OpenAI keys.
+
+### 3. Apply the database schema (CRITICAL)
+
+Open your [Supabase dashboard](https://supabase.com/dashboard) → **SQL Editor** → New query.
+Paste the entire contents of `supabase/schema.sql` and click **Run**.
+
+This creates all tables, security policies, triggers, and the storage bucket needed for image uploads.
+
+### 4. (Optional) Add seed data
+
+Run `supabase/seed.sql` in the SQL Editor to add sample anonymous complaints.
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**IMPORTANT**: You must restart the dev server (`Ctrl+C` then `npm run dev`) any time you change `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 6. Create an admin user
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Go to `http://localhost:3000/auth/login` and **enable email/password or Google auth** in your Supabase dashboard under **Authentication → Providers**.
+2. Sign in through the app.
+3. In Supabase SQL Editor, run:
 
-## Learn More
+```sql
+update public.profiles
+set role = 'admin'
+where id = '<your-auth-user-id>';
+```
 
-To learn more about Next.js, take a look at the following resources:
+Find your user ID in Supabase **Authentication → Users**.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. Now you can access the admin dashboard at `/admin`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 7. Verify everything works
 
-## Deploy on Vercel
+The **ServiceStatus** cards on the homepage show:
+- **Supabase**: "connected and schema ready" (green)
+- **OpenAI**: "gpt-4o-mini" (green)
+- **Maps**: "OpenStreetMap, no card needed" (green)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+If any show amber, the corresponding feature will use demo/mock data.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## How demo mode works
+
+Without environment variables (or if the database schema isn't applied), the app gracefully falls back:
+- **Supabase missing**: Mock complaints, no auth, no real submissions
+- **OpenAI missing**: AI analysis returns a generic fallback result
+- **Maps**: Always uses free OpenStreetMap tiles — no token required
+
+## Admin dashboard
+
+The admin dashboard at `/admin` provides:
+- Live complaint feed with realtime updates
+- Filter by area, category, severity, status
+- Update complaint status (pending → in progress → resolved)
+- Assign complaints to municipal staff
+- Analytics: total, resolved %, average response time, hotspot heatmap
+- Interactive map view
+
+## Deployment
+
+1. Push the repository to GitHub.
+2. Import the project into Vercel.
+3. Add all environment variables in Vercel Project Settings.
+4. Add your production URL to Supabase Auth redirect URLs.
+5. Deploy.
+
+## Security Notes
+
+- Row-level security is enabled for all application tables.
+- Admin routes are protected by middleware and `profiles.role`.
+- Uploads are limited to images under 8 MB in both API and server action paths.
+- The OpenAI analysis endpoint includes a lightweight IP-based rate limit.
+- Complaint images are stored in a dedicated public Supabase Storage bucket.
