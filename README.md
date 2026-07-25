@@ -6,13 +6,10 @@
 - `supabase/seed.sql` contains starter anonymous complaint data.
 - `docs/architecture.md` describes folder structure, auth flow, and data flow.
 
+#To start the app
 npm run dev
 
 
-```sql
-update public.profiles
-set role = 'admin'
-where id = '<your-auth-user-id>';
-```
+
 
 
