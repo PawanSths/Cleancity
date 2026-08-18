@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity, CheckCircle2, Clock, Filter, MapPinned, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SelectNative } from "@/components/ui/select-native";
-import { MetricCard } from "@/components/admin/metric-card";
 import { DynamicMap } from "@/components/maps/dynamic-map";
 import { StatusBadge, SeverityBadge } from "@/components/complaints/status-badge";
 import { complaintCategories, complaintStatuses, severityLevels } from "@/lib/constants";
@@ -86,25 +84,25 @@ export function AdminDashboard({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Total complaints" value={analytics.total} icon={<Activity className="h-5 w-5" />} />
-        <MetricCard
-          label="Resolved"
-          value={formatPercent(analytics.resolvedPercent)}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
-        <MetricCard
-          label="Average response"
-          value={formatDurationHours(analytics.averageResponseHours)}
-          icon={<Clock className="h-5 w-5" />}
-          hint="Resolved reports only"
-        />
-        <MetricCard
-          label="Top hotspot"
-          value={analytics.hotspots[0]?.area ?? "None"}
-          icon={<MapPinned className="h-5 w-5" />}
-          hint={`${analytics.hotspots[0]?.count ?? 0} reports`}
-        />
+      <section className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Total Reports</p>
+          <p className="mt-1 text-2xl font-semibold">{analytics.total}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Resolved</p>
+          <p className="mt-1 text-2xl font-semibold">{formatPercent(analytics.resolvedPercent)}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Avg. Response</p>
+          <p className="mt-1 text-2xl font-semibold">{formatDurationHours(analytics.averageResponseHours)}</p>
+          <p className="text-xs text-muted-foreground">Resolved reports only</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-sm text-muted-foreground">Top Hotspot</p>
+          <p className="mt-1 text-2xl font-semibold">{analytics.hotspots[0]?.area ?? "None"}</p>
+          <p className="text-xs text-muted-foreground">{analytics.hotspots[0]?.count ?? 0} reports</p>
+        </div>
       </section>
 
       <div className="flex justify-end">
@@ -116,155 +114,166 @@ export function AdminDashboard({
         </Button>
       </div>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Live complaint feed
-            </CardTitle>
-            <CardDescription>
-              Filter, assign, and update municipal response status.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input
-                placeholder="Filter by area"
-                value={filters.area}
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, area: event.target.value }))
-                }
-              />
-              <SelectNative
-                value={filters.category}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    category: event.target.value as ComplaintCategory | "all",
-                  }))
-                }
-              >
-                <option value="all">All categories</option>
-                {complaintCategories.map((category) => (
-                  <option key={category.value} value={category.value}>
-                    {category.label}
-                  </option>
-                ))}
-              </SelectNative>
-              <SelectNative
-                value={filters.severity}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    severity: event.target.value as Severity | "all",
-                  }))
-                }
-              >
-                <option value="all">All severities</option>
-                {severityLevels.map((severity) => (
-                  <option key={severity.value} value={severity.value}>
-                    {severity.label}
-                  </option>
-                ))}
-              </SelectNative>
-              <SelectNative
-                value={filters.status}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    status: event.target.value as ComplaintStatus | "all",
-                  }))
-                }
-              >
-                <option value="all">All statuses</option>
-                {complaintStatuses.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </SelectNative>
-            </div>
-
-            <div className="max-h-[640px] space-y-3 overflow-auto pr-1">
-              {filteredComplaints.map((complaint) => (
-                <div key={complaint.id} className="rounded-lg border bg-background p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold">{complaint.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {complaint.area ?? "Unmapped"} · {complaint.category}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <StatusBadge status={complaint.status} />
-                      <SeverityBadge severity={complaint.severity} />
-                    </div>
-                  </div>
-                  <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
-                    {complaint.ai_summary ?? complaint.description}
-                  </p>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <form action={updateComplaintStatus} className="flex gap-2">
-                      <input type="hidden" name="complaintId" value={complaint.id} />
-                      <SelectNative name="status" defaultValue={complaint.status}>
-                        {complaintStatuses.map((status) => (
-                          <option key={status.value} value={status.value}>
-                            {status.label}
-                          </option>
-                        ))}
-                      </SelectNative>
-                      <Button type="submit" variant="secondary">Save</Button>
-                    </form>
-                    <form action={assignComplaint} className="flex gap-2">
-                      <input type="hidden" name="complaintId" value={complaint.id} />
-                      <SelectNative name="staffId" defaultValue={complaint.assigned_to ?? ""}>
-                        <option value="">Unassigned</option>
-                        {staff.map((member) => (
-                          <option key={member.id} value={member.id}>
-                            {member.full_name ?? "Unnamed staff"}
-                          </option>
-                        ))}
-                      </SelectNative>
-                      <Button type="submit" variant="outline">Assign</Button>
-                    </form>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <DynamicMap complaints={filteredComplaints} heightClassName="h-[520px]" />
-          <Card>
-            <CardHeader>
-              <CardTitle>Hotspot heatmap</CardTitle>
-              <CardDescription>Area concentration based on current complaint volume.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {analytics.hotspots.map((hotspot) => (
-                <div key={hotspot.area} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>{hotspot.area}</span>
-                    <span>{hotspot.count}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-secondary">
-                    <div
-                      className="h-2 rounded-full bg-primary"
-                      style={{
-                        width: `${Math.max(
-                          8,
-                          (hotspot.count / Math.max(1, analytics.hotspots[0]?.count ?? 1)) * 100,
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">Reports</h2>
+            <p className="text-sm text-muted-foreground">Filter, assign, and update municipal response status.</p>
+          </div>
         </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input
+            placeholder="Filter by area"
+            value={filters.area}
+            onChange={(event) =>
+              setFilters((current) => ({ ...current, area: event.target.value }))
+            }
+          />
+          <SelectNative
+            value={filters.category}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                category: event.target.value as ComplaintCategory | "all",
+              }))
+            }
+          >
+            <option value="all">All categories</option>
+            {complaintCategories.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </SelectNative>
+          <SelectNative
+            value={filters.severity}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                severity: event.target.value as Severity | "all",
+              }))
+            }
+          >
+            <option value="all">All severities</option>
+            {severityLevels.map((severity) => (
+              <option key={severity.value} value={severity.value}>
+                {severity.label}
+              </option>
+            ))}
+          </SelectNative>
+          <SelectNative
+            value={filters.status}
+            onChange={(event) =>
+              setFilters((current) => ({
+                ...current,
+                status: event.target.value as ComplaintStatus | "all",
+              }))
+            }
+          >
+            <option value="all">All statuses</option>
+            {complaintStatuses.map((status) => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </SelectNative>
+        </div>
+
+        <div className="rounded-lg border bg-card overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Report</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Area</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Category</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Severity</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {filteredComplaints.map((complaint) => (
+                <tr key={complaint.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{complaint.title}</p>
+                    <p className="text-sm text-muted-foreground line-clamp-1">
+                      {complaint.ai_summary ?? complaint.description}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {complaint.area ?? "Unmapped"}
+                  </td>
+                  <td className="px-4 py-3 text-sm">{complaint.category}</td>
+                  <td className="px-4 py-3">
+                    <SeverityBadge severity={complaint.severity} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={complaint.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <form action={updateComplaintStatus} className="flex gap-2">
+                        <input type="hidden" name="complaintId" value={complaint.id} />
+                        <SelectNative name="status" defaultValue={complaint.status}>
+                          {complaintStatuses.map((status) => (
+                            <option key={status.value} value={status.value}>
+                              {status.label}
+                            </option>
+                          ))}
+                        </SelectNative>
+                        <Button type="submit" variant="secondary" size="sm">Save</Button>
+                      </form>
+                      <form action={assignComplaint} className="flex gap-2">
+                        <input type="hidden" name="complaintId" value={complaint.id} />
+                        <SelectNative name="staffId" defaultValue={complaint.assigned_to ?? ""}>
+                          <option value="">Unassigned</option>
+                          {staff.map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {member.full_name ?? "Unnamed staff"}
+                            </option>
+                          ))}
+                        </SelectNative>
+                        <Button type="submit" variant="outline" size="sm">Assign</Button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">Hotspots</h2>
+        <p className="text-sm text-muted-foreground">Area concentration based on current complaint volume.</p>
+        <div className="rounded-lg border bg-card p-4 space-y-3">
+          {analytics.hotspots.map((hotspot) => (
+            <div key={hotspot.area} className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{hotspot.area}</span>
+                <span>{hotspot.count}</span>
+              </div>
+              <div className="h-2 rounded-full bg-secondary">
+                <div
+                  className="h-2 rounded-full bg-primary"
+                  style={{
+                    width: `${Math.max(
+                      8,
+                      (hotspot.count / Math.max(1, analytics.hotspots[0]?.count ?? 1)) * 100,
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">Map</h2>
+        <DynamicMap complaints={filteredComplaints} heightClassName="h-[400px]" />
       </section>
     </div>
   );

@@ -42,14 +42,7 @@ export async function getSystemStatus(): Promise<SystemStatus> {
     }
   }
 
-  const aiConfigured = Boolean(env.aiApiKey || env.openaiApiKey);
-  let aiProvider = "OpenAI";
-  if (env.aiApiBaseUrl) {
-    if (env.aiApiBaseUrl.includes("groq")) aiProvider = "Groq";
-    else if (env.aiApiBaseUrl.includes("localhost") || env.aiApiBaseUrl.includes("ollama")) aiProvider = "Ollama";
-    else if (env.aiApiBaseUrl.includes("together")) aiProvider = "Together AI";
-    else aiProvider = "OpenAI-compatible";
-  }
+  const aiConfigured = Boolean(env.geminiApiKey);
 
   return {
     supabase: {
@@ -59,9 +52,9 @@ export async function getSystemStatus(): Promise<SystemStatus> {
     },
     ai: {
       configured: aiConfigured,
-      provider: aiProvider,
-      model: env.aiVisionModel,
-      message: aiConfigured ? `${aiProvider} · ${env.aiVisionModel}` : "no API key configured",
+      provider: "Google Gemini",
+      model: env.geminiVisionModel,
+      message: aiConfigured ? `Google Gemini · ${env.geminiVisionModel}` : "no API key configured",
     },
     maps: {
       provider: "OpenStreetMap",

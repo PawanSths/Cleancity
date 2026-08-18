@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { env } from "@/lib/env";
 import type { AiAnalysis, ComplaintCategory, Severity } from "@/types/database";
 
@@ -62,20 +62,12 @@ function coerceAnalysis(value: Partial<AiAnalysis>): AiAnalysis {
 }
 
 function isConfigured(): { ok: true } | { ok: false; reason: string } {
-  const hasBaseUrl = Boolean(env.aiApiBaseUrl);
-  const hasApiKey = Boolean(env.aiApiKey || env.openaiApiKey);
+  const hasApiKey = Boolean(env.geminiApiKey);
 
-  if (!hasBaseUrl && !hasApiKey) {
-    return { ok: false, reason: "No AI provider configured (set AI_API_BASE_URL or OPENAI_API_KEY)." };
-  }
-
-  // Detect placeholder key
-  const key = env.aiApiKey || env.openaiApiKey || "";
-  if (key.startsWith("gsk_") && key.length < 30) {
+  if (!hasApiKey) {
     return {
       ok: false,
-      reason:
-        "Groq API key looks like a placeholder. Sign up at https://console.groq.com to get a real key, or switch to Ollama in .env.local.",
+      reason: "No AI provider configured (set GEMINI_API_KEY).",
     };
   }
 
@@ -102,22 +94,12 @@ export async function analyzeImage({
   }
 
   try {
-    const client = new OpenAI({
-      apiKey: env.aiApiKey || env.openaiApiKey || "ollama",
-      baseURL: env.aiApiBaseUrl || undefined,
+    const genAI = new GoogleGenerativeAI(env.geminiApiKey);
+    const model = genAI.getGenerativeModel({
+      model: env.geminiVisionModel || "gemini-1.5-flash",
     });
 
-    const response = await client.chat.completions.create({
-      model: env.aiVisionModel,
-      temperature: 0.3,
-      max_tokens: 500,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `You are a civic issue inspector analyzing a photo submitted by a citizen.
+    const prompt = `You are a civic issue inspector analyzing a photo submitted by a citizen.
 Describe what you see in detail FIRST, then classify it according to the strict schema below.
 Return ONLY valid JSON with these exact fields:
 
@@ -130,20 +112,28 @@ Return ONLY valid JSON with these exact fields:
   "suggestedTitle": "A short 4-8 word descriptive title for this report"
 }
 
-IMPORTANT: Look at the image carefully. If there is garbage or litter, categorize as "garbage". If there is a road damage, categorize as "pothole". If blocked water flow, "drainage". If sewage/wastewater, "sewage". If spray paint on walls, "graffiti". For anything else, "other".`,
-            },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${base64}`, detail: "low" },
-            },
-          ],
-        },
-      ],
-    });
+IMPORTANT: Look at the image carefully. If there is garbage or litter, categorize as "garbage". If there is a road damage, categorize as "pothole". If blocked water flow, "drainage". If sewage/wastewater, "sewage". If spray paint on walls, "graffiti". For anything else, "other".`;
 
-    const text = response.choices[0]?.message?.content ?? "";
+    const imagePart = {
+      inlineData: {
+        data: base64,
+        mimeType,
+      },
+    };
+
+    const result = await model.generateContent([prompt, imagePart]);
+    const response = await result.response;
+    const text = response.text() ?? "";
+
     try {
-      return coerceAnalysis(JSON.parse(text) as Partial<AiAnalysis>);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return coerceAnalysis(JSON.parse(jsonMatch[0]) as Partial<AiAnalysis>);
+      }
+      return {
+        ...fallbackAnalysis(),
+        summary: text.slice(0, 600) || fallbackAnalysis().summary,
+      };
     } catch {
       return {
         ...fallbackAnalysis(),
@@ -153,10 +143,10 @@ IMPORTANT: Look at the image carefully. If there is garbage or litter, categoriz
   } catch (error) {
     const msg = error instanceof Error ? error.message.toLowerCase() : "";
 
-    if (msg.includes("does not support image") || msg.includes("does not support images") || msg.includes("vision")) {
+    if (msg.includes("quota") || msg.includes("rate limit") || msg.includes("429")) {
       return {
         category: "other",
-        summary: `AI review unavailable: model "${env.aiVisionModel}" does not support image input. Replace with a vision-capable model (e.g. llama-3.2-11b-vision-preview for Groq, or llama3.2-vision for Ollama).`,
+        summary: "AI review unavailable: rate limit exceeded. Try again in a minute.",
         severity: "medium",
         confidence: 0,
         spamScore: 0,
@@ -164,21 +154,10 @@ IMPORTANT: Look at the image carefully. If there is garbage or litter, categoriz
       };
     }
 
-    if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("403") || msg.includes("api key")) {
+    if (msg.includes("api key") || msg.includes("unauthorized") || msg.includes("401") || msg.includes("403")) {
       return {
         category: "other",
-        summary: `AI review unavailable: authentication failed. Check your AI_API_KEY or sign up for a free key at https://console.groq.com.`,
-        severity: "medium",
-        confidence: 0,
-        spamScore: 0,
-        suggestedTitle: undefined,
-      };
-    }
-
-    if (msg.includes("429") || msg.includes("rate limit") || msg.includes("too many")) {
-      return {
-        category: "other",
-        summary: "AI review unavailable: too many requests. Try again in a minute.",
+        summary: "AI review unavailable: authentication failed. Check your GEMINI_API_KEY.",
         severity: "medium",
         confidence: 0,
         spamScore: 0,
@@ -189,7 +168,7 @@ IMPORTANT: Look at the image carefully. If there is garbage or litter, categoriz
     if (msg.includes("model") && (msg.includes("not found") || msg.includes("does not exist"))) {
       return {
         category: "other",
-        summary: `AI review unavailable: model "${env.aiVisionModel}" not found. Check the model name or use a different one.`,
+        summary: "AI review unavailable: model not found. Check GEMINI_VISION_MODEL in .env.local.",
         severity: "medium",
         confidence: 0,
         spamScore: 0,

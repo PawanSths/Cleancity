@@ -8,6 +8,12 @@ import { safeFileName } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import type { ComplaintStatus } from "@/types/database";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidUUID(value: string): boolean {
+  return UUID_REGEX.test(value);
+}
+
 export type ActionState = {
   ok: boolean;
   message: string;
@@ -156,6 +162,19 @@ export async function updateComplaintStatus(formData: FormData) {
   if (!parsed.success || !isSupabaseConfigured) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || !["admin", "staff"].includes(profile.role)) return;
   const patch: { status: ComplaintStatus; resolved_at?: string | null } = {
     status: parsed.data.status,
   };
@@ -176,7 +195,24 @@ export async function assignComplaint(formData: FormData) {
 
   const complaintId = String(formData.get("complaintId") ?? "");
   const staffId = String(formData.get("staffId") ?? "");
+
+  if (!complaintId || !isValidUUID(complaintId)) return;
+  if (staffId && !isValidUUID(staffId)) return;
+
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.role !== "admin") return;
 
   await supabase
     .from("complaints")
@@ -193,9 +229,22 @@ export async function updateUserRole(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   const role = String(formData.get("role") ?? "");
 
-  if (!userId || !["citizen", "staff", "admin"].includes(role)) return;
+  if (!userId || !isValidUUID(userId) || !["citizen", "staff", "admin"].includes(role)) return;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.role !== "admin") return;
   await supabase.from("profiles").update({ role }).eq("id", userId);
   revalidatePath("/admin");
   revalidatePath("/admin/users");

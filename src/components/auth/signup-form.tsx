@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, UserRound } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,9 @@ import { createClient } from "@/lib/supabase/browser";
 import { isSupabasePublicConfigured, publicEnv } from "@/lib/public-env";
 
 export function SignupForm() {
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const next = searchParams?.get("next") ?? "/";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,7 +35,7 @@ export function SignupForm() {
       password,
       options: {
         data: { full_name: name || undefined },
-        emailRedirectTo: `${publicEnv.appUrl}/auth/callback`,
+        emailRedirectTo: `${publicEnv.appUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`,
       },
     });
     setLoading(false);
@@ -91,9 +94,7 @@ export function SignupForm() {
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <UserRound className="h-4 w-4" />
-        )}
+        ) : null}
         Create account
       </Button>
       <p className="text-center text-sm text-muted-foreground">

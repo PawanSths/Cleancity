@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Building2, MapPin, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Building2 } from "lucide-react";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/auth/user-menu";
 
@@ -14,26 +13,18 @@ export function SiteHeader() {
           </span>
           <span>CleanCity</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          <Button asChild variant="ghost">
-            <Link href="/report">
-              <MapPin className="h-4 w-4" />
-              Report
-            </Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/admin">
-              <ShieldCheck className="h-4 w-4" />
-              Admin
-            </Link>
-          </Button>
+        <nav className="hidden items-center gap-4 md:flex">
+          <Link href="/report" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            Report an Issue
+          </Link>
+          <Link href="/report" className="hidden md:inline-block">|</Link>
+          <Link href="/admin" className="text-sm font-medium text-muted-foreground hover:text-foreground">
+            Dashboard
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <UserMenu />
-          <Button asChild variant="secondary" className="sm:hidden" size="sm">
-            <Link href="/report">Report</Link>
-          </Button>
         </div>
       </div>
     </header>

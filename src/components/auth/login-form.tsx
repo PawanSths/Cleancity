@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Globe, Loader2, Lock, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,12 @@ import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/browser";
 import { isSupabasePublicConfigured, publicEnv } from "@/lib/public-env";
 
+function sanitizeNext(next: string): string {
+  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
 export function LoginForm({ next = "/" }: { next?: string }) {
+  const safeNext = sanitizeNext(next);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState<"password" | "magic" | "google" | null>(null);
@@ -30,7 +35,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
     });
     setLoading(null);
     if (error) toast.error(error.message);
-    else window.location.href = next;
+    else window.location.href = safeNext;
   }
 
   async function signInWithMagicLink() {
@@ -43,7 +48,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${publicEnv.appUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+        emailRedirectTo: `${publicEnv.appUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`,
       },
     });
     setLoading(null);
@@ -101,9 +106,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       >
         {loading === "password" ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Lock className="h-4 w-4" />
-        )}
+        ) : null}
         Sign in with password
       </Button>
       <div className="relative">
@@ -120,9 +123,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       >
         {loading === "magic" ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Mail className="h-4 w-4" />
-        )}
+        ) : null}
         Send magic link
       </Button>
       <Button
@@ -133,9 +134,7 @@ export function LoginForm({ next = "/" }: { next?: string }) {
       >
         {loading === "google" ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Globe className="h-4 w-4" />
-        )}
+        ) : null}
         Continue with Google
       </Button>
       <p className="text-center text-sm text-muted-foreground">

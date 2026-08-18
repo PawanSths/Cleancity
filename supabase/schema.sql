@@ -216,7 +216,14 @@ create policy "Authenticated users can upload complaint photos"
 on storage.objects for insert
 with check (
   bucket_id = 'complaint-photos'
-  and auth.role() in ('authenticated', 'anon')
+  and auth.role() = 'authenticated'
+);
+
+create policy "Anonymous users can upload complaint photos"
+on storage.objects for insert
+with check (
+  bucket_id = 'complaint-photos'
+  and auth.role() = 'anon'
 );
 
 alter publication supabase_realtime add table public.complaints;
